@@ -1,1 +1,20 @@
-cropenv
+# Python virtual environments
+cropenv/
+
+
+# Python cache files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Secrets and local settings
+.env
+
+# Generated ML models
+models/*.pkl
+models/*.joblib
+models/*.keras
+models/*.h5
+
+# Uploaded soil images
+data/soil_images/
