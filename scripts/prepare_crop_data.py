@@ -1,33 +1,28 @@
+from app.core.crop_model_config import (
+    CATEGORICAL_FEATURES,
+    NUMERIC_FEATURES,
+    FEATURE_COLUMNS,
+    REQUIRED_COLUMNS,
+    TARGET_COLUMN
+)
+
 from pathlib import Path
 
 import pandas as pd
 
-ROOT=Path(__file__).resolve().parents[1]
+from app.core.crop_model_config import (
+    CATEGORICAL_FEATURES,
+    NUMERIC_FEATURES,
+    FEATURE_COLUMNS,
+    REQUIRED_COLUMNS,
+    TARGET_COLUMN
+)
 
-INPUT_FILE=ROOT/"data"/"training"/"crop_recommendation.csv"
-OUTPUT_FILE=ROOT/"data"/"processed"/"crop_model_data.csv"
 
+ROOT = Path(__file__).resolve().parents[1]
 
-TEXT_COLUMNS=[
-    "CROPS",
-    "SOIL",
-    "SEASON",
-    "SOWN",
-    "WATER_SOURCE"
-]
-
-FEATURE_COLUMNS = [
-    "SOIL",
-    "SEASON",
-    "SOWN",
-    "WATER_SOURCE",
-    "TEMP",
-    "MAX_TEMP",
-    "RELATIVE_HUMIDITY",
-    "RELATIVE_HUMIDITY_MAX",
-]
-
-TARGET_COLUMN = "CROPS"
+INPUT_FILE = ROOT / "data" / "training" / "crop_recommendation.csv"
+OUTPUT_FILE = ROOT / "data" / "processed" / "crop_model_data.csv"
 
 
 def clean_text(series):
@@ -39,60 +34,81 @@ def clean_text(series):
         .str.lower()
     )
 
+
 def prepare_data():
-    if not INPUT_FILE:
-        raise FileNotFoundError(f"Dataset not  found {INPUT_FILE}")
-    df=pd.read_csv(INPUT_FILE)
 
-    print("Original dataset shape",df.shape)
+    if not INPUT_FILE.exists():
+        raise FileNotFoundError(
+            f"Dataset not found: {INPUT_FILE}"
+        )
 
-    required_columns=FEATURE_COLUMNS+[TARGET_COLUMN]
+    df = pd.read_csv(INPUT_FILE)
 
-    missing_columns=[
-        col for col in required_columns
+    print("Original dataset shape:", df.shape)
+
+    # Validate required columns
+    missing_columns = [
+        col for col in REQUIRED_COLUMNS
         if col not in df.columns
     ]
 
     if missing_columns:
-        raise ValueError(f"Missing required columns :{missing_columns}")
+        raise ValueError(
+            f"Missing required columns: {missing_columns}"
+        )
 
+    # Clean categorical features and target
+    for col in CATEGORICAL_FEATURES + [TARGET_COLUMN]:
+        df[col] = clean_text(df[col])
 
-    for col in TEXT_COLUMNS:
-        df[col]=clean_text(df[col])
+    # Convert numerical features
+    for col in NUMERIC_FEATURES:
+        df[col] = pd.to_numeric(
+            df[col],
+            errors="coerce"
+        )
 
-    numeric_columns=[
-        "TEMP",
-        "MAX_TEMP",
-        "RELATIVE_HUMIDITY",
-        "RELATIVE_HUMIDITY_MAX",
-    ]
-    for col in numeric_columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce")   
+    # Select only the required columns
+    prepared = df[REQUIRED_COLUMNS].copy()
 
-    prepared = df[required_columns].copy()
-
+    # Check missing values after processing
     print("\nMissing values:")
     print(prepared.isnull().sum().to_string())
 
     if prepared.isnull().any().any():
         raise ValueError(
-            "Missing values found. Investigate them before training."
+            "Missing values found. Check the original dataset."
         )
-    
-    if (prepared[TARGET_COLUMN] == "").any():
-        raise ValueError("Empty crop labels found.")
 
-    OUTPUT_FILE.parent.mkdir(parents=True,exist_ok=True)
+    # Check empty categorical values
+    text_columns = CATEGORICAL_FEATURES + [TARGET_COLUMN]
 
-    prepared.to_csv(OUTPUT_FILE,index=False)
+    for col in text_columns:
+        if prepared[col].str.strip().eq("").any():
+            raise ValueError(
+                f"Empty values found in column: {col}"
+            )
 
-    print("\nPrepared dataset shape:", prepared.shape)
-    print("Number of input features:", len(FEATURE_COLUMNS))
-    print("\nCrop distribution:")
-    print(prepared[TARGET_COLUMN].value_counts().to_string())
+    # Save prepared data
+    OUTPUT_FILE.parent.mkdir(
+        parents=True,
+        exist_ok=True
+    )
 
-    print("\nSoil labels after cleaning:")
-    print(prepared["SOIL"].nunique())
+    prepared.to_csv(
+        OUTPUT_FILE,
+        index=False
+    )
+
+    print("\n========== PREPARATION SUMMARY ==========")
+
+    print("Prepared dataset shape:", prepared.shape)
+
+    print("Input features:", len(FEATURE_COLUMNS))
+
+    print("Target column:", TARGET_COLUMN)
+
+    print("Unique crops:", prepared[TARGET_COLUMN].nunique())
 
     print("\nSaved to:", OUTPUT_FILE)
 
