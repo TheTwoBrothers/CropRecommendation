@@ -5,6 +5,7 @@ from app.core.crop_model_config import (
     REQUIRED_COLUMNS,
     TARGET_COLUMN
 )
+from app.utils.text_preprocessing import normalize_text_series
 
 from pathlib import Path
 
@@ -23,16 +24,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 INPUT_FILE = ROOT / "data" / "training" / "crop_recommendation.csv"
 OUTPUT_FILE = ROOT / "data" / "processed" / "crop_model_data.csv"
-
-
-def clean_text(series):
-    return (
-        series.astype("string")
-        .str.replace("\u00a0", " ", regex=False)
-        .str.replace(r"\s+", " ", regex=True)
-        .str.strip()
-        .str.lower()
-    )
 
 
 def prepare_data():
@@ -59,7 +50,7 @@ def prepare_data():
 
     # Clean categorical features and target
     for col in CATEGORICAL_FEATURES + [TARGET_COLUMN]:
-        df[col] = clean_text(df[col])
+        df[col] = normalize_text_series(df[col])
 
     # Convert numerical features
     for col in NUMERIC_FEATURES:
