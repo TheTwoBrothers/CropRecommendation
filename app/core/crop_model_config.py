@@ -9,7 +9,6 @@ used across data preparation, training and inference.
 CATEGORICAL_FEATURES = [
     "SOIL",
     "SEASON",
-    "SOWN",
     "WATER_SOURCE"
 ]
 
